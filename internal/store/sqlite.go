@@ -178,16 +178,22 @@ func (s *SQLiteStore) UpdateFinding(f *domain.Finding) error {
 func (s *SQLiteStore) ReplaceFindings(caseID string, findings []domain.Finding) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.db.Exec(`DELETE FROM findings WHERE segment_id IN (SELECT segment_id FROM segments WHERE case_id=?)`, caseID); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`DELETE FROM findings WHERE segment_id IN (SELECT segment_id FROM segments WHERE case_id=?)`, caseID); err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	for i := range findings {
 		f := findings[i]
-		if _, err := s.db.Exec(`INSERT INTO findings VALUES(?,?,?,?,?,?,?,?)`, f.FindingID, f.SegmentID, f.Category, f.StartOffset, f.EndOffset, f.Decision, f.ReplacementText, f.Rationale); err != nil {
+		if _, err = tx.Exec(`INSERT INTO findings VALUES(?,?,?,?,?,?,?,?)`, f.FindingID, f.SegmentID, f.Category, f.StartOffset, f.EndOffset, f.Decision, f.ReplacementText, f.Rationale); err != nil {
+			_ = tx.Rollback()
 			return err
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 func (s *SQLiteStore) SaveCandidate(c *domain.Candidate) error {
 	b, _ := json.Marshal(c.Changes)
