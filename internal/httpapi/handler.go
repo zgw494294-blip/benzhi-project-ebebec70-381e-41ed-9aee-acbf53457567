@@ -124,9 +124,21 @@ func (h *Handler) caseRoute(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, status(e), e)
 			return
 		}
-		segs, _ := h.svc.Segments(id)
-		fs, _ := h.svc.Findings(id)
-		reviews, _ := h.svc.Reviews(id)
+		segs, e := h.svc.Segments(id)
+		if e != nil {
+			writeErr(w, status(e), e)
+			return
+		}
+		fs, e := h.svc.Findings(id)
+		if e != nil {
+			writeErr(w, status(e), e)
+			return
+		}
+		reviews, e := h.svc.Reviews(id)
+		if e != nil {
+			writeErr(w, status(e), e)
+			return
+		}
 		write(w, 200, map[string]interface{}{"case": c, "segments": segs, "findings": fs, "reviews": reviews})
 		return
 	}
