@@ -228,12 +228,14 @@ func (s *Service) Decide(id, fid, decision, repl, why string, v int64, actor str
 		return domain.ErrNotFound
 	}
 	segText := ""
-	if segs, er := s.repo.ListSegments(id); er == nil {
-		for _, seg := range segs {
-			if seg.SegmentID == target.SegmentID {
-				segText = seg.OriginalText
-				break
-			}
+	segs, er := s.repo.ListSegments(id)
+	if er != nil {
+		return domain.ErrInvalid
+	}
+	for _, seg := range segs {
+		if seg.SegmentID == target.SegmentID {
+			segText = seg.OriginalText
+			break
 		}
 	}
 	target.Decision, target.ReplacementText, target.Rationale = decision, repl, why
