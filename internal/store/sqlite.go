@@ -226,12 +226,11 @@ func (s *SQLiteStore) SaveReview(id string, r *domain.Review) error {
 func (s *SQLiteStore) CommitReview(id string, r *domain.Review, status domain.CaseStatus, expected int64, actor string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	tx, err := s.db.Begin()
-	if err != nil {
+	if _, err := s.db.Exec(`INSERT INTO reviews(case_id,reviewer,decision,comment,created_at) VALUES(?,?,?,?,?)`, id, r.Reviewer, r.Decision, r.Comment, r.CreatedAt.Format(time.RFC3339Nano)); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`INSERT INTO reviews(case_id,reviewer,decision,comment,created_at) VALUES(?,?,?,?,?)`, id, r.Reviewer, r.Decision, r.Comment, r.CreatedAt.Format(time.RFC3339Nano)); err != nil {
-		_ = tx.Rollback()
+	tx, err := s.db.Begin()
+	if err != nil {
 		return err
 	}
 	now := time.Now().Format(time.RFC3339Nano)
