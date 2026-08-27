@@ -209,12 +209,25 @@ func (h *Handler) scan(w http.ResponseWriter, r *http.Request, id string) {
 	if q.ExpectedVersion > 0 {
 		ev = q.ExpectedVersion
 	}
-	fs, e := h.svc.Scan(id, ev, actor(r))
-	if e != nil {
-		writeErr(w, status(e), e)
-		return
+	type scanResult struct {
+		findings []domain.Finding
+		err      error
 	}
-	write(w, 200, map[string]interface{}{"findings": fs})
+	result := make(chan scanResult, 1)
+	go func() {
+		fs, e := h.svc.Scan(id, ev, actor(r))
+		result <- scanResult{findings: fs, err: e}
+	}()
+	select {
+	case <-r.Context().Done():
+		writeErr(w, http.StatusRequestTimeout, r.Context().Err())
+	case completed := <-result:
+		if completed.err != nil {
+			writeErr(w, status(completed.err), completed.err)
+			return
+		}
+		write(w, 200, map[string]interface{}{"findings": completed.findings})
+	}
 }
 func (h *Handler) finding(w http.ResponseWriter, r *http.Request, id string, rest []string) {
 	if r.Method == "GET" {
